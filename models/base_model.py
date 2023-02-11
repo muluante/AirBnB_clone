@@ -1,53 +1,55 @@
 #!/usr/bin/python3
-"""Model module Base.
-Contains the BaseModel class the
-"base" of all other classes in this project.
-"""
+"""This script is the base model"""
+
 import uuid
 from datetime import datetime
-import models
+from models import storage
 
 
-class BaseModel():
-    """This class will be the “base” of all other classes in this project.
-    The goal is to manage all common attributes and methods for other classes.
-    Attributes:
-        id (str): unique random ID for each BaseModel instance.
-        created_at (datetime): the current datetime when instance is created.
-        updated_at (datetime): the current datetime when instance is updated.
-    """
+class BaseModel:
+
+    """Class from which all other classes will inherit"""
 
     def __init__(self, *args, **kwargs):
-        """Initializes the default attributes of the BaseModel object.
+        """Initializes instance attributes
         Args:
-            *args: unused.
-            **kwargs (dict): a dictionary containing wanted attributes.
+            - *args: list of arguments
+            - **kwargs: dict of key-values arguments
         """
-        self.id = str(uuid.uuid4())
-        self.created_at = self.updated_at = datetime.now()
+
         if kwargs is not None and kwargs != {}:
-            for k, v in kwargs.items():
-                if k in ["created_at", "updated_at"]:
-                    v = datetime.strptime(v, "%Y-%m-%dT%H:%M:%S.%f")
-                if k != "__class__":
-                    setattr(self, k, v)
+            for key in kwargs:
+                if key == "created_at":
+                    self.__dict__["created_at"] = datetime.strptime(
+                        kwargs["created_at"], "%Y-%m-%dT%H:%M:%S.%f")
+                elif key == "updated_at":
+                    self.__dict__["updated_at"] = datetime.strptime(
+                        kwargs["updated_at"], "%Y-%m-%dT%H:%M:%S.%f")
+                else:
+                    self.__dict__[key] = kwargs[key]
         else:
-            models.storage.new(self)
+            self.id = str(uuid.uuid4())
+            self.created_at = datetime.now()
+            self.updated_at = datetime.now()
+            storage.new(self)
 
     def __str__(self):
-        """Overrides the default behaviour of the __str__ method."""
-        return "[{}] ({}) {}".format(
-            self.__class__.__name__, self.id, self.__dict__)
+        """Returns official string representation"""
+
+        return "[{}] ({}) {}".\
+            format(type(self).__name__, self.id, self.__dict__)
 
     def save(self):
-        """Updates the updated_at attribute with the current datetime."""
+        """updates the public instance attribute updated_at"""
+
         self.updated_at = datetime.now()
-        models.storage.save()
+        storage.save()
 
     def to_dict(self):
-        """Returns a dictionary with all the keys/values of the instance."""
-        dictionary = self.__dict__.copy()
-        dictionary['__class__'] = self.__class__.__name__
-        dictionary['created_at'] = self.created_at.isoformat()
-        dictionary['updated_at'] = self.updated_at.isoformat()
-        return 
+        """returns a dictionary containing all keys/values of __dict__"""
+
+        my_dict = self.__dict__.copy()
+        my_dict["__class__"] = type(self).__name__
+        my_dict["created_at"] = my_dict["created_at"].isoformat()
+        my_dict["updated_at"] = my_dict["updated_at"].isoformat()
+        return my_dict
