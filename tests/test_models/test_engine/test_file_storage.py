@@ -1,108 +1,109 @@
 #!/usr/bin/python3
-"""
-Unittest to test FileStorage class
-"""
+""" Module for testing the file storage API """
 import unittest
-import pep8
-import json
-import os
 from models.base_model import BaseModel
-from models.user import User
-from models.state import State
-from models.city import City
-from models.amenity import Amenity
-from models.place import Place
-from models.review import Review
-from models.engine.file_storage import FileStorage
+from models import storage
+import os
 
 
-class TestFileStorage(unittest.TestCase):
-    """
-    testing file storage
-    """
+class test_fileStorage(unittest.TestCase):
+    """ Class to test the file storage method """
 
-    @classmethod
-    def setUpClass(cls):
-        cls.usr = User()
-        cls.usr.first_name = "Tay"
-        cls.usr.last_name = "lor"
-        cls.usr.email = "taylor@gmail.com"
-        cls.storage = FileStorage()
+    def setUp(self):
+        """ Set up test environment """
+        del_list = []
+        for key in storage._FileStorage__objects.keys():
+            del_list.append(key)
+        for key in del_list:
+            del storage._FileStorage__objects[key]
 
-    @classmethod
-    def teardown(cls):
-        del cls.usr
-
-    def teardown(self):
+    def tearDown(self):
+        """ Remove storage file at end of tests """
         try:
-            os.remove("file.json")
+            os.remove('file.json')
         except:
             pass
 
-    def test_style_check(self):
-        """
-        Tests pep8 style
-        """
-        style = pep8.StyleGuide(quiet=True)
-        p = style.check_files(['models/engine/file_storage.py'])
-        self.assertEqual(p.total_errors, 0, "fix pep8")
-
-    def test_all(self):
-        """
-        Tests method: all (returns dic <class>.<id> : <obj instance>)
-        """
-        fstorage = FileStorage()
-        instances_dic = fstorage.all()
-        self.assertIsNotNone(instances_dic)
-        self.assertEqual(type(instances_dic), dict)
-        self.assertIs(instances_dic, fstorage._FileStorage__objects)
+    def test_obj_list_empty(self):
+        """ __objects is initially empty """
+        self.assertEqual(len(storage.all()), 0)
 
     def test_new(self):
-        """
-        Tests method: new (saves object into dictionary)
-        """
-        n_storage = FileStorage()
-        dic = n_storage.all()
-        rev = User()
-        rev.id = 999999
-        rev.name = "Tassadar"
-        n_storage.new(rev)
-        key = rev.__class__.__name__ + "." + str(rev.id)
-        self.assertIsNotNone(dic[key])
+        """ New object is correctly added to __objects """
+        new = BaseModel()
+        for obj in storage.all().values():
+            temp = obj
+        self.assertTrue(temp is obj)
+
+    def test_all(self):
+        """ __objects is properly returned """
+        new = BaseModel()
+        temp = storage.all()
+        self.assertIsInstance(temp, dict)
+
+    def test_base_model_instantiation(self):
+        """ File is not created on BaseModel save """
+        new = BaseModel()
+        self.assertFalse(os.path.exists('file.json'))
+
+    def test_empty(self):
+        """ Data is saved to file """
+        new = BaseModel()
+        thing = new.to_dict()
+        new.save()
+        new2 = BaseModel(**thing)
+        self.assertNotEqual(os.path.getsize('file.json'), 0)
+
+    def test_save(self):
+        """ FileStorage save method """
+        new = BaseModel()
+        storage.save()
+        self.assertTrue(os.path.exists('file.json'))
 
     def test_reload(self):
-        """
-        reloading (reloads objects from string file)
-        """
-        self.storage.save()
-        pth = os.path.dirname(os.path.abspath("console.py"))
-        pt = os.path.join(pth, "file.json")
-        with open(pt, 'r') as f:
-            lines = f.readlines()
+        """ Storage file is successfully loaded to __objects """
+        new = BaseModel()
+        storage.save()
+        storage.reload()
+        for obj in storage.all().values():
+            loaded = obj
+        self.assertEqual(new.to_dict()['id'], loaded.to_dict()['id'])
 
-        try:
-            os.remove(pt)
-        except BaseException:
+    def test_reload_empty(self):
+        """ Load from an empty file """
+        with open('file.json', 'w') as f:
             pass
+        with self.assertRaises(ValueError):
+            storage.reload()
 
-        self.storage.save()
+    def test_reload_from_nonexistent(self):
+        """ Nothing happens if file does not exist """
+        self.assertEqual(storage.reload(), None)
 
-        with open(pt, 'r') as f:
-            lines2 = f.readlines()
+    def test_base_model_save(self):
+        """ BaseModel save method calls storage save """
+        new = BaseModel()
+        new.save()
+        self.assertTrue(os.path.exists('file.json'))
 
-        self.assertEqual(lines, lines2)
+    def test_type_path(self):
+        """ Confirm __file_path is string """
+        self.assertEqual(type(storage._FileStorage__file_path), str)
 
-        try:
-            os.remove(pt)
-        except BaseException:
-            pass
+    def test_type_objects(self):
+        """ Confirm __objects is a dict """
+        self.assertEqual(type(storage.all()), dict)
 
-        with open(pt, "w") as f:
-            f.write("{}")
-        with open(pt, "r") as r:
-            for line in r:
-                self.assertEqual(line, "{}")
-        self.assertIs(self.storage.reload(), None)
+    def test_key_format(self):
+        """ Key is properly formatted """
+        new = BaseModel()
+        _id = new.to_dict()['id']
+        for key in storage.all().keys():
+            temp = key
+        self.assertEqual(temp, 'BaseModel' + '.' + _id)
 
-if __name__ == "__main__":
-    unittest.main()
+    def test_storage_var_created(self):
+        """ FileStorage object storage created """
+        from models.engine.file_storage import FileStorage
+        print(type(storage))
+        self.assertEqual(type(storage), FileStorage)
